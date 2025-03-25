@@ -1,8 +1,17 @@
-'use strict';
-var BSON = require('bson');
+import * as BSON from 'bson';
 
-var internalRestoreBuffer = async (bag) => {
-    var {
+import { Collection, Document } from 'mongodb';
+
+export interface RestoreBufferBag {
+    collectionHandle: Collection;
+    buffer: Buffer;
+    limit?: number;
+    filterDocuments?: (doc: Document) => boolean;
+    transformDocuments?: (doc: Document) => Document;
+}
+
+export const internalRestoreBuffer = async (bag: RestoreBufferBag): Promise<void> => {
+    let {
         collectionHandle,
 
         buffer,
@@ -12,8 +21,8 @@ var internalRestoreBuffer = async (bag) => {
         transformDocuments,
     } = bag;
 
-    var index = 0;
-    var documents = [];
+    let index = 0;
+    let documents: BSON.Document[] = [];
     while (
         buffer.length > index
         && (!limit || limit > documents.length)
@@ -25,15 +34,15 @@ var internalRestoreBuffer = async (bag) => {
             1,      // numberOfDocuments
             tmp,    // targetArray
             0,      // targetArrayStartIndex,
-            // {}   // options
+            {}   // options
         );
         documents.push(...(
             filterDocuments
-            ? tmp.filter(filterDocuments)
-            : tmp
+                ? tmp.filter(filterDocuments)
+                : tmp
         ));
     }
-    
+
     if (transformDocuments) {
         documents = documents.map(transformDocuments);
     }
@@ -42,5 +51,3 @@ var internalRestoreBuffer = async (bag) => {
         await collectionHandle.insertMany(documents);
     }
 }
-
-module.exports = internalRestoreBuffer;
